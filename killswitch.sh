@@ -71,7 +71,7 @@ elif [ "$INPUT" == "check" ]; then
   while [ 1 ]; do
     if [ "`/bin/ping -c1 -I $NET_TUN google.com`" == "" ]; then
       echo "Error detected with openvpn, restarting openvpn and $SERVICE..."
-      /bin/systemctl start $SERVICE
+      /bin/systemctl stop $SERVICE
       /bin/systemctl stop openvpn
       ufwreset
       /bin/systemctl start openvpn
