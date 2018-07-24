@@ -35,7 +35,7 @@ info()
 # ufw force reset function
 ufwreset()
 {
-  ufw --force reset
+  /usr/sbin/ufw --force reset
 }
 
 if [ $SETUP != "yes" ]; then
@@ -47,35 +47,39 @@ if [ "$INPUT" == "up" ]; then
   ufwreset
 
   # Set up the firewall and block all connections
-  ufw default deny outgoing
-  ufw default deny incoming
+  /usr/sbin/ufw default deny outgoing
+  /usr/sbin/ufw default deny incoming
 
   # allow vpn device
-  ufw allow out on $NET_TUN
-  ufw allow in on $NET_TUN
+  /usr/sbin/ufw allow out on $NET_TUN
+  /usr/sbin/ufw allow in on $NET_TUN
 
   # allow port for vpn over network device
-  ufw allow out on $NET_DEV to any port $PORT
-  ufw allow in on $NET_DEV from any port $PORT
+  /usr/sbin/ufw allow out on $NET_DEV to any port $PORT
+  /usr/sbin/ufw allow in on $NET_DEV from any port $PORT
 
   # allow DNS
-  ufw allow out on $NET_TUN to any port 53
-  ufw allow in on $NET_TUN to any port 53
+  /usr/sbin/ufw allow out on $NET_TUN to any port 53
+  /usr/sbin/ufw allow in on $NET_TUN to any port 53
 
   # Allow local network connections
-  ufw allow out on $NET_DEV from any to $LOCAL_NET
-  ufw allow in on $NET_DEV from $LOCAL_NET to any
+  /usr/sbin/ufw allow out on $NET_DEV from any to $LOCAL_NET
+  /usr/sbin/ufw allow in on $NET_DEV from $LOCAL_NET to any
 
-  ufw enable
+  /usr/sbin/ufw enable
 elif [ "$INPUT" == "check" ]; then
   while [ 1 ]; do
     if [ "`/bin/ping -c1 -I $NET_TUN google.com`" == "" ]; then
       echo "Error detected with openvpn, restarting openvpn and $SERVICE..."
       /bin/systemctl stop $SERVICE
       /bin/systemctl stop openvpn
-      ufwreset
-      /bin/systemctl start openvpn
-      /bin/sleep 5
+      /usr/sbin/killswitch.sh down && /bin/sleep 5
+
+      if [ "inactive" != "`/usr/sbin/ufw status | cut -f2 -d \" \" | grep active`" ]; then
+        /sbin/reboot
+      fi
+      
+      /bin/systemctl start openvpn && /bin/sleep 5
       /usr/sbin/killswitch.sh up
       /bin/systemctl start $SERVICE
       echo "killswitch.sh restored."
