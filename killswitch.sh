@@ -11,14 +11,15 @@
 #
 # Designed for use with openvpn on Ubuntu 18.04/16.04 LTS
 #
-INPUT=$@                   # Grab input
-SETUP="no"                 # change to yes after updating script
-NET_DEV="eth0"             # Default etwork device
-LOCAL_NET="192.168.0.0/24" # Local network subnet
-NET_TUN="tun0"             # VPN connection device
-PORT=443                   # Port used by VPN
-SERVICE="apache2"          # Service used with openvpn
-VPN_IP=""                  # This will be obtained
+INPUT=$@                              # Grab input
+SETUP="no"                            # change to yes after updating script
+NET_DEV="eth0"                        # Default etwork device
+LOCAL_NET="192.168.0.0/24"            # Local network subnet
+NET_TUN="tun0"                        # VPN connection device
+PORT=443                              # Port used by VPN
+SERVICE="apache2"                     # Service used with openvpn
+VPN_IP=""                             # This will be obtained
+LOGFILE="/var/log/killswitch/vpn.log" # Log file location
 
 # info about usage
 info()
@@ -70,19 +71,25 @@ if [ "$INPUT" == "up" ]; then
 elif [ "$INPUT" == "check" ]; then
   while [ 1 ]; do
     if [ "`/bin/ping -c1 -I $NET_TUN google.com`" == "" ]; then
-      echo "Error detected with openvpn, restarting openvpn and $SERVICE..."
+      echo "*** [Restarting openvpn: `/bin/hostname` @ `/bin/date`] ***" >> $LOGFILE
+
       /bin/systemctl stop $SERVICE
       /bin/systemctl stop openvpn
-      /usr/sbin/killswitch.sh down && /bin/sleep 5
+
+      /usr/sbin/killswitch.sh down
+      /bin/sleep 5
 
       if [ "inactive" != "`/usr/sbin/ufw status | cut -f2 -d \" \" | grep active`" ]; then
         /sbin/reboot
       fi
-      
-      /bin/systemctl start openvpn && /bin/sleep 5
+
+      /bin/systemctl start openvpn >> $LOGFILE
+      /bin/sleep 5
+
       /usr/sbin/killswitch.sh up
       /bin/systemctl start $SERVICE
-      echo "killswitch.sh restored."
+
+      echo "-----------------------------------------------------------------"
     fi
     /bin/sleep 15
   done
