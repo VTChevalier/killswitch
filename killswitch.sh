@@ -95,29 +95,6 @@ elif [ "$INPUT" == "check" ]; then
       echo "-----------------------------------------------------------------" >> $LOGFILE
     fi
     sleep 60
-  while [ 1 ]; do
-    if [ "`/bin/ping -c1 -I $NET_TUN google.com`" == "" ]; then
-      echo "*** [Restarting openvpn: `/bin/hostname` @ `/bin/date`] ***" >> $LOGFILE
-
-      /bin/systemctl stop $SERVICE
-      /bin/systemctl stop openvpn
-
-      /usr/sbin/killswitch.sh down
-      /bin/sleep 5
-
-      if [ "inactive" != "`/usr/sbin/ufw status | cut -f2 -d \" \" | grep active`" ]; then
-        /sbin/reboot
-      fi
-
-      /bin/systemctl start openvpn >> $LOGFILE
-      /bin/sleep 5
-
-      /usr/sbin/killswitch.sh up
-      /bin/systemctl start $SERVICE
-
-      echo "-----------------------------------------------------------------"
-    fi
-    /bin/sleep 15
   done
 elif [ "$INPUT" == "down" ]; then
   /usr/sbin/ufw disable
