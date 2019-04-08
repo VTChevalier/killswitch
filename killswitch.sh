@@ -20,6 +20,7 @@ PORT=443                              # Port used by VPN
 SERVICE="apache2"                     # Service used with openvpn
 VPN_IP=""                             # This will be obtained
 LOGFILE="/var/log/killswitch/vpn.log" # Log file location
+mkdir -p /var/log/killswitch
 
 # info about usage
 info()
@@ -33,20 +34,12 @@ info()
   echo -e "An argument must be provided or you will receive this message"
 }
 
-# ufw force reset function
-ufwreset()
-{
-  /usr/sbin/ufw --force reset
-}
-
 if [ $SETUP != "yes" ]; then
   echo -e "Please update variables in /usr/sbin/killswitch.sh"
   exit 1;
 fi
 
 if [ "$INPUT" == "up" ]; then
-  ufwreset
-
   # Set up the firewall and block all connections
   /usr/sbin/ufw default deny outgoing
   /usr/sbin/ufw default deny incoming
@@ -66,9 +59,42 @@ if [ "$INPUT" == "up" ]; then
   # Allow local network connections
   /usr/sbin/ufw allow out on $NET_DEV from any to $LOCAL_NET
   /usr/sbin/ufw allow in on $NET_DEV from $LOCAL_NET to any
-
+  
   /usr/sbin/ufw enable
+elif [ "$INPUT" == "up" ]; then
+  /usr/sbin/ufw enable
+
 elif [ "$INPUT" == "check" ]; then
+  while [ 1 ]; do
+    if [ "`/bin/ping -c1 -I $NET_TUN google.com`" == "" ]; then
+      /bin/systemctl stop $SERVICE
+
+      echo "*** [Restarting openvpn: `/bin/hostname` @ `/bin/date`] ***" >> $LOGFILE
+
+      while [ "`/bin/ping -c1 -I $NET_TUN google.com`" == "" ]; do
+        /usr/bin/pkill openvpn
+        /usr/sbin/ufw disable
+
+        if [ "inactive" != "`/usr/sbin/ufw status | cut -f2 -d \" \" | grep active`" ]; then
+          /sbin/reboot
+        fi
+
+        while [ "`/sbin/ifconfig | grep 192.168.15`" == "" ]; do
+          # waiting for eth to be assigned ip
+          sleep 60
+        done
+
+        /usr/sbin/openvpn --daemon --config /etc/openvpn/ipvanish.conf
+        sleep 30
+        /usr/sbin/ufw enable
+
+      done
+
+      /bin/systemctl start $SERVICE
+
+      echo "-----------------------------------------------------------------" >> $LOGFILE
+    fi
+    sleep 60
   while [ 1 ]; do
     if [ "`/bin/ping -c1 -I $NET_TUN google.com`" == "" ]; then
       echo "*** [Restarting openvpn: `/bin/hostname` @ `/bin/date`] ***" >> $LOGFILE
@@ -94,9 +120,19 @@ elif [ "$INPUT" == "check" ]; then
     /bin/sleep 15
   done
 elif [ "$INPUT" == "down" ]; then
-  ufwreset
+  /usr/sbin/ufw disable
+
+elif [ "$INPUT" == "install" ]; then
+  # install cron montior
+
+  # install init script
+  echo "" > /etc/init.d/killswitch
+
+  # start script
+
 else
   info
 fi
 
 exit 0;
+
